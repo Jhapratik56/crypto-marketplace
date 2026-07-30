@@ -6,14 +6,22 @@ export const ProductList = ({ products }: { products: readonly ProductListItemFr
 		<ul
 			role="list"
 			data-testid="ProductList"
-			className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3"
+			className="
+				grid
+				grid-cols-2
+				gap-3
+				sm:grid-cols-3
+				md:grid-cols-4
+				lg:grid-cols-5
+				xl:grid-cols-6
+			"
 		>
 			{products.map((product, index) => (
 				<ProductElement
 					key={product.id}
 					product={product}
-					priority={index === 0}
-					loading={index < 3 ? "eager" : "lazy"}
+					priority={index < 6}
+					loading={index < 6 ? "eager" : "lazy"}
 				/>
 			))}
 		</ul>
