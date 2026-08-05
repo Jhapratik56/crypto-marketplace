@@ -10,6 +10,7 @@ export const usePaymentGatewaysInitialize = () => {
 	const {
 		checkout: { billingAddress },
 	} = useCheckout();
+
 	const {
 		checkout: { id: checkoutId, availablePaymentGateways },
 	} = useCheckout();
@@ -17,6 +18,7 @@ export const usePaymentGatewaysInitialize = () => {
 	const billingCountry = billingAddress?.country.code as MightNotExist<CountryCode>;
 
 	const [gatewayConfigs, setGatewayConfigs] = useState<ParsedPaymentGateways>([]);
+
 	const previousBillingCountry = useRef(billingCountry);
 
 	const [{ fetching }, paymentGatewaysInitialize] = usePaymentGatewaysInitializeMutation();
@@ -26,26 +28,39 @@ export const usePaymentGatewaysInitialize = () => {
 			() => ({
 				hideAlerts: true,
 				scope: "paymentGatewaysInitialize",
+
+				// If Saleor has no configured gateways, do not run the
+				// initialization mutation. The custom NOWPayments button
+				// can still be displayed in the checkout.
 				shouldAbort: () => !availablePaymentGateways.length,
+
 				onSubmit: paymentGatewaysInitialize,
+
 				parse: () => ({
 					checkoutId,
+
 					paymentGateways: getFilteredPaymentGateways(availablePaymentGateways).map(({ config, id }) => ({
 						id,
 						data: config,
 					})),
 				}),
+
 				onSuccess: ({ data }) => {
 					const parsedConfigs = (data.gatewayConfigs || []) as ParsedPaymentGateways;
 
-					if (!parsedConfigs.length) {
-						throw new Error("No available payment gateways");
-					}
-
+					// Do not throw an error when there are no Saleor
+					// payment gateways. An empty array is valid because
+					// NOWPayments is being rendered as a custom option.
 					setGatewayConfigs(parsedConfigs);
 				},
+
 				onError: ({ errors }) => {
-					console.log({ errors });
+					console.error("Payment gateway initialization failed:", errors);
+
+					// Keep checkout usable even if gateway initialization
+					// fails. Existing Saleor gateway components simply
+					// will not be displayed.
+					setGatewayConfigs([]);
 				},
 			}),
 			[availablePaymentGateways, checkoutId, paymentGatewaysInitialize],
@@ -54,17 +69,18 @@ export const usePaymentGatewaysInitialize = () => {
 
 	useEffect(() => {
 		void onSubmit();
-	}, []);
+	}, [onSubmit]);
 
 	useEffect(() => {
 		if (billingCountry !== previousBillingCountry.current) {
 			previousBillingCountry.current = billingCountry;
+
 			void onSubmit();
 		}
 	}, [billingCountry, onSubmit]);
 
 	return {
 		fetching,
-		availablePaymentGateways: gatewayConfigs || [],
+		availablePaymentGateways: gatewayConfigs,
 	};
 };
