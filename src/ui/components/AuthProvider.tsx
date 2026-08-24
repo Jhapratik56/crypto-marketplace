@@ -1,52 +1,36 @@
 "use client";
 
-import { SaleorAuthProvider, useAuthChange } from "@saleor/auth-sdk/react";
-import { invariant } from "ts-invariant";
-import { createSaleorAuthClient } from "@saleor/auth-sdk";
-import { useState, type ReactNode } from "react";
-import {
-	type Client,
-	Provider as UrqlProvider,
-	cacheExchange,
-	createClient,
-	dedupExchange,
-	fetchExchange,
-} from "urql";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
-const saleorApiUrl = process.env.NEXT_PUBLIC_SALEOR_API_URL;
-invariant(saleorApiUrl, "Missing NEXT_PUBLIC_SALEOR_API_URL env variable");
+import { auth } from "@/lib/firebase";
 
-export const saleorAuthClient = createSaleorAuthClient({
-	saleorApiUrl,
-});
-
-const makeUrqlClient = () => {
-	return createClient({
-		url: saleorApiUrl,
-		suspense: true,
-		// requestPolicy: "cache-first",
-		fetch: (input, init) => saleorAuthClient.fetchWithAuth(input as NodeJS.fetch.RequestInfo, init),
-		exchanges: [dedupExchange, cacheExchange, fetchExchange],
-	});
+type AuthContextType = {
+	user: User | null;
+	loading: boolean;
 };
 
+const AuthContext = createContext<AuthContextType>({
+	user: null,
+	loading: true,
+});
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-	invariant(saleorApiUrl, "Missing NEXT_PUBLIC_SALEOR_API_URL env variable");
+	const [user, setUser] = useState<User | null>(null);
+	const [loading, setLoading] = useState(true);
 
-	const [urqlClient, setUrqlClient] = useState<Client>(() => makeUrqlClient());
-	useAuthChange({
-		saleorApiUrl,
-		onSignedOut: () => {
-			setUrqlClient(makeUrqlClient());
-		},
-		onSignedIn: () => {
-			setUrqlClient(makeUrqlClient());
-		},
-	});
+	useEffect(() => {
+		const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+			setUser(firebaseUser);
+			setLoading(false);
+		});
 
-	return (
-		<SaleorAuthProvider client={saleorAuthClient}>
-			<UrqlProvider value={urqlClient}>{children}</UrqlProvider>
-		</SaleorAuthProvider>
-	);
+		return () => unsubscribe();
+	}, []);
+
+	return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+	return useContext(AuthContext);
 }

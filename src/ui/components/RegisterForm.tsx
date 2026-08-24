@@ -1,7 +1,12 @@
 "use client";
 
 import { FirebaseError } from "firebase/app";
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import {
+	createUserWithEmailAndPassword,
+	GoogleAuthProvider,
+	signInWithPopup,
+	updateProfile,
+} from "firebase/auth";
 import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,21 +14,26 @@ import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 
 type FormValues = {
+	name: string;
 	email: string;
 	password: string;
+	confirmPassword: string;
 };
 
 const DefaultValues: FormValues = {
+	name: "",
 	email: "",
 	password: "",
+	confirmPassword: "",
 };
 
-export function LoginForm() {
+export function RegisterForm() {
 	const router = useRouter();
 
 	const [formValues, setFormValues] = useState<FormValues>(DefaultValues);
 	const [errors, setErrors] = useState<string[]>([]);
 	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -31,43 +41,54 @@ export function LoginForm() {
 		event.preventDefault();
 
 		setErrors([]);
+
+		if (formValues.password !== formValues.confirmPassword) {
+			setErrors(["Passwords do not match."]);
+			return;
+		}
+
+		if (formValues.password.length < 6) {
+			setErrors(["Password must be at least 6 characters."]);
+			return;
+		}
+
 		setIsLoading(true);
 
 		try {
-			await signInWithEmailAndPassword(auth, formValues.email, formValues.password);
+			const userCredential = await createUserWithEmailAndPassword(
+				auth,
+				formValues.email,
+				formValues.password,
+			);
+
+			await updateProfile(userCredential.user, {
+				displayName: formValues.name,
+			});
 
 			router.replace("/");
 		} catch (error: unknown) {
-			let message = "Unable to sign in. Please try again.";
+			let message = "Unable to create your account. Please try again.";
 
 			if (error instanceof FirebaseError) {
 				switch (error.code) {
-					case "auth/invalid-credential":
-						message = "Invalid email or password.";
-						break;
-
-					case "auth/user-not-found":
-						message = "No account was found with this email.";
-						break;
-
-					case "auth/wrong-password":
-						message = "Incorrect password.";
+					case "auth/email-already-in-use":
+						message = "An account already exists with this email.";
 						break;
 
 					case "auth/invalid-email":
 						message = "Please enter a valid email address.";
 						break;
 
-					case "auth/user-disabled":
-						message = "This account has been disabled.";
-						break;
-
-					case "auth/too-many-requests":
-						message = "Too many login attempts. Please try again later.";
+					case "auth/weak-password":
+						message = "Your password is too weak. Please choose a stronger password.";
 						break;
 
 					case "auth/network-request-failed":
 						message = "Network error. Please check your internet connection.";
+						break;
+
+					case "auth/operation-not-allowed":
+						message = "Email/password registration is not enabled in Firebase.";
 						break;
 				}
 			}
@@ -78,7 +99,7 @@ export function LoginForm() {
 		}
 	};
 
-	const googleLoginHandler = async () => {
+	const googleRegisterHandler = async () => {
 		setErrors([]);
 		setIsGoogleLoading(true);
 
@@ -89,24 +110,24 @@ export function LoginForm() {
 
 			router.replace("/");
 		} catch (error: unknown) {
-			let message = "Unable to sign in with Google. Please try again.";
+			let message = "Unable to continue with Google. Please try again.";
 
 			if (error instanceof FirebaseError) {
 				switch (error.code) {
 					case "auth/popup-closed-by-user":
-						message = "Google sign-in was cancelled.";
+						message = "Google sign-up was cancelled.";
 						break;
 
 					case "auth/popup-blocked":
 						message = "Your browser blocked the Google sign-in popup.";
 						break;
 
-					case "auth/account-exists-with-different-credential":
-						message = "An account already exists with this email using a different sign-in method.";
-						break;
-
 					case "auth/network-request-failed":
 						message = "Network error. Please check your internet connection.";
+						break;
+
+					case "auth/account-exists-with-different-credential":
+						message = "An account already exists with this email using a different sign-in method.";
 						break;
 				}
 			}
@@ -135,18 +156,18 @@ export function LoginForm() {
 	return (
 		<div className="w-full">
 			<div className="mx-auto w-full max-w-md">
-				{/* Logo / Brand */}
+				{/* Logo */}
 				<div className="mb-10 text-center">
 					<Link href="/" className="inline-block text-3xl font-bold tracking-tight text-neutral-900">
 						AllTheCart
 					</Link>
 
-					<h1 className="mt-8 text-3xl font-semibold tracking-tight text-neutral-900">Welcome back</h1>
+					<h1 className="mt-8 text-3xl font-semibold tracking-tight text-neutral-900">Create your account</h1>
 
-					<p className="mt-2 text-sm text-neutral-500">Sign in to your AllTheCart account</p>
+					<p className="mt-2 text-sm text-neutral-500">Join AllTheCart today</p>
 				</div>
 
-				{/* Login Card */}
+				{/* Card */}
 				<div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
 					{/* Errors */}
 					{errors.length > 0 && (
@@ -159,10 +180,10 @@ export function LoginForm() {
 						</div>
 					)}
 
-					{/* Google Login */}
+					{/* Google */}
 					<button
 						type="button"
-						onClick={googleLoginHandler}
+						onClick={googleRegisterHandler}
 						disabled={isBusy}
 						className="
 							flex
@@ -181,9 +202,6 @@ export function LoginForm() {
 							text-neutral-800
 							transition
 							hover:bg-neutral-50
-							focus:outline-none
-							focus:ring-2
-							focus:ring-neutral-900/10
 							disabled:cursor-not-allowed
 							disabled:opacity-60
 						"
@@ -191,7 +209,7 @@ export function LoginForm() {
 						{isGoogleLoading ? (
 							<>
 								<span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-900" />
-								Signing in with Google...
+								Creating account...
 							</>
 						) : (
 							<>
@@ -221,12 +239,44 @@ export function LoginForm() {
 					{/* Divider */}
 					<div className="my-6 flex items-center gap-4">
 						<div className="h-px flex-1 bg-neutral-200" />
+
 						<span className="text-xs text-neutral-400">OR</span>
+
 						<div className="h-px flex-1 bg-neutral-200" />
 					</div>
 
-					{/* Email / Password Form */}
+					{/* Form */}
 					<form onSubmit={submitHandler} className="space-y-5">
+						{/* Name */}
+						<div>
+							<label htmlFor="name" className="mb-2 block text-sm font-medium text-neutral-800">
+								Full name
+							</label>
+
+							<input
+								id="name"
+								type="text"
+								name="name"
+								autoComplete="name"
+								placeholder="Your name"
+								required
+								disabled={isBusy}
+								value={formValues.name}
+								onChange={changeHandler}
+								className="
+									w-full rounded-lg border
+									border-neutral-300 bg-white
+									px-4 py-3 text-sm
+									text-neutral-900 outline-none
+									placeholder:text-neutral-400
+									focus:border-neutral-900
+									focus:ring-2
+									focus:ring-neutral-900/10
+									disabled:bg-neutral-50
+								"
+							/>
+						</div>
+
 						{/* Email */}
 						<div>
 							<label htmlFor="email" className="mb-2 block text-sm font-medium text-neutral-800">
@@ -244,22 +294,14 @@ export function LoginForm() {
 								value={formValues.email}
 								onChange={changeHandler}
 								className="
-									w-full
-									rounded-lg
-									border
-									border-neutral-300
-									bg-white
-									px-4
-									py-3
-									text-sm
-									text-neutral-900
-									outline-none
-									transition
+									w-full rounded-lg border
+									border-neutral-300 bg-white
+									px-4 py-3 text-sm
+									text-neutral-900 outline-none
 									placeholder:text-neutral-400
 									focus:border-neutral-900
 									focus:ring-2
 									focus:ring-neutral-900/10
-									disabled:cursor-not-allowed
 									disabled:bg-neutral-50
 								"
 							/>
@@ -267,48 +309,30 @@ export function LoginForm() {
 
 						{/* Password */}
 						<div>
-							<div className="mb-2 flex items-center justify-between">
-								<label htmlFor="password" className="block text-sm font-medium text-neutral-800">
-									Password
-								</label>
-
-								<Link
-									href="/forgot-password"
-									className="text-sm font-medium text-neutral-600 hover:text-neutral-900"
-								>
-									Forgot password?
-								</Link>
-							</div>
+							<label htmlFor="password" className="mb-2 block text-sm font-medium text-neutral-800">
+								Password
+							</label>
 
 							<div className="relative">
 								<input
 									id="password"
 									type={showPassword ? "text" : "password"}
 									name="password"
-									autoComplete="current-password"
-									placeholder="Enter your password"
+									autoComplete="new-password"
+									placeholder="Create a password"
 									required
 									disabled={isBusy}
 									value={formValues.password}
 									onChange={changeHandler}
 									className="
-										w-full
-										rounded-lg
-										border
-										border-neutral-300
-										bg-white
-										px-4
-										py-3
-										pr-20
-										text-sm
-										text-neutral-900
-										outline-none
-										transition
+										w-full rounded-lg border
+										border-neutral-300 bg-white
+										px-4 py-3 pr-20 text-sm
+										text-neutral-900 outline-none
 										placeholder:text-neutral-400
 										focus:border-neutral-900
 										focus:ring-2
 										focus:ring-neutral-900/10
-										disabled:cursor-not-allowed
 										disabled:bg-neutral-50
 									"
 								/>
@@ -318,15 +342,10 @@ export function LoginForm() {
 									onClick={() => setShowPassword((prev) => !prev)}
 									disabled={isBusy}
 									className="
-										absolute
-										right-3
-										top-1/2
-										-translate-y-1/2
-										text-sm
-										font-medium
-										text-neutral-500
+										absolute right-3 top-1/2
+										-translate-y-1/2 text-sm
+										font-medium text-neutral-500
 										hover:text-neutral-900
-										disabled:cursor-not-allowed
 									"
 								>
 									{showPassword ? "Hide" : "Show"}
@@ -334,28 +353,64 @@ export function LoginForm() {
 							</div>
 						</div>
 
-						{/* Login Button */}
+						{/* Confirm Password */}
+						<div>
+							<label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-neutral-800">
+								Confirm password
+							</label>
+
+							<div className="relative">
+								<input
+									id="confirmPassword"
+									type={showConfirmPassword ? "text" : "password"}
+									name="confirmPassword"
+									autoComplete="new-password"
+									placeholder="Confirm your password"
+									required
+									disabled={isBusy}
+									value={formValues.confirmPassword}
+									onChange={changeHandler}
+									className="
+										w-full rounded-lg border
+										border-neutral-300 bg-white
+										px-4 py-3 pr-20 text-sm
+										text-neutral-900 outline-none
+										placeholder:text-neutral-400
+										focus:border-neutral-900
+										focus:ring-2
+										focus:ring-neutral-900/10
+										disabled:bg-neutral-50
+									"
+								/>
+
+								<button
+									type="button"
+									onClick={() => setShowConfirmPassword((prev) => !prev)}
+									disabled={isBusy}
+									className="
+										absolute right-3 top-1/2
+										-translate-y-1/2 text-sm
+										font-medium text-neutral-500
+										hover:text-neutral-900
+									"
+								>
+									{showConfirmPassword ? "Hide" : "Show"}
+								</button>
+							</div>
+						</div>
+
+						{/* Register */}
 						<button
 							type="submit"
 							disabled={isBusy}
 							className="
-								flex
-								w-full
-								items-center
-								justify-center
-								gap-2
-								rounded-lg
-								bg-neutral-900
-								px-4
-								py-3
-								text-sm
-								font-semibold
-								text-white
-								transition
-								hover:bg-neutral-800
+								flex w-full items-center
+								justify-center gap-2 rounded-lg
+								bg-neutral-900 px-4 py-3
+								text-sm font-semibold text-white
+								transition hover:bg-neutral-800
 								focus:outline-none
-								focus:ring-2
-								focus:ring-neutral-900
+								focus:ring-2 focus:ring-neutral-900
 								focus:ring-offset-2
 								disabled:cursor-not-allowed
 								disabled:opacity-60
@@ -365,16 +420,16 @@ export function LoginForm() {
 								<span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 							)}
 
-							{isLoading ? "Signing in..." : "Sign in"}
+							{isLoading ? "Creating account..." : "Create account"}
 						</button>
 					</form>
 
-					{/* Register */}
+					{/* Login */}
 					<div className="mt-6 border-t border-neutral-200 pt-6 text-center">
 						<p className="text-sm text-neutral-500">
-							Don&apos;t have an account?{" "}
-							<Link href="/register" className="font-semibold text-neutral-900 hover:underline">
-								Create an account
+							Already have an account?{" "}
+							<Link href="/login" className="font-semibold text-neutral-900 hover:underline">
+								Sign in
 							</Link>
 						</p>
 					</div>
@@ -382,7 +437,7 @@ export function LoginForm() {
 
 				{/* Footer */}
 				<p className="mt-6 text-center text-xs text-neutral-400">
-					By signing in, you agree to our{" "}
+					By creating an account, you agree to our{" "}
 					<Link href="/terms" className="underline hover:text-neutral-600">
 						Terms
 					</Link>{" "}

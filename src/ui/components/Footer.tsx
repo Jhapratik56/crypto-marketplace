@@ -20,8 +20,8 @@ export async function Footer() {
 					{/* Brand */}
 					<div className="md:col-span-2 lg:col-span-1">
 						<Link href="/" className="text-2xl font-bold tracking-tight transition hover:text-zinc-300">
-							Crypto
-							<span className="text-zinc-400">Market</span>
+							AllTheCart
+							<span className="text-zinc-400">.com</span>
 						</Link>
 
 						<p className="mt-5 max-w-sm text-sm leading-7 text-zinc-400">
@@ -114,6 +114,49 @@ export async function Footer() {
 						</div>
 					))}
 
+					{/* Customer care */}
+					<div>
+						<h3 className="text-sm font-semibold uppercase tracking-wider text-white">Customer Care</h3>
+
+						<ul className="mt-6 space-y-4">
+							<li>
+								<Link className={linkClassName} href="/pages/contact-us">
+									Contact Us
+								</Link>
+							</li>
+
+							<li>
+								<Link className={linkClassName} href="/pages/terms-and-conditions">
+									Terms &amp; Conditions
+								</Link>
+							</li>
+
+							<li>
+								<Link className={linkClassName} href="/pages/privacy-policy">
+									Privacy Policy
+								</Link>
+							</li>
+
+							<li>
+								<Link className={linkClassName} href="/pages/shipping">
+									Shipping
+								</Link>
+							</li>
+
+							<li>
+								<Link className={linkClassName} href="/pages/refund-policy">
+									Refund Policy
+								</Link>
+							</li>
+
+							<li>
+								<Link className={linkClassName} href="/pages/faq">
+									FAQ
+								</Link>
+							</li>
+						</ul>
+					</div>
+
 					{/* Social links */}
 					<div>
 						<h3 className="text-sm font-semibold uppercase tracking-wider text-white">Follow Us</h3>
@@ -197,14 +240,12 @@ export async function Footer() {
 				<div className="flex flex-col gap-5 border-t border-zinc-800 py-8 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-sm text-zinc-500">© {currentYear} CryptoMarket. All rights reserved.</p>
 
-					<div className="flex items-center gap-2 text-sm text-zinc-400">
-						<span className="flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 text-xs">
+					<div className="flex items-end gap-2 text-sm text-zinc-400">
+						<span className="flex h-7 w-7 items-end justify-center rounded-full border border-zinc-700 text-xs">
 							✓
 						</span>
 						Secure crypto payments
 					</div>
-
-					<p className="text-sm text-zinc-600">Built with Next.js &amp; Saleor</p>
 				</div>
 			</div>
 		</footer>
